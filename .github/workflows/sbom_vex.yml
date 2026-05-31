@@ -1,0 +1,78 @@
+name: Generate SBOM with VEX
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # CycloneDX形式でSBOMを生成
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+
+      # VEX情報をSBOMに追記するスクリプトを実行
+      - name: Add VEX to SBOM
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime, timezone
+
+          with open("sbom.cdx.json", "r") as f:
+              sbom = json.load(f)
+
+          # VEXセクションを追加
+          sbom["vulnerabilities"] = [
+            {
+              "id": "CVE-2023-30861",
+              "source": {
+                "name": "NVD",
+                "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-30861"
+              },
+              "ratings": [
+                {
+                  "severity": "high",
+                  "method": "CVSSv3"
+                }
+              ],
+              "description": "Flask cookie session漏洩の脆弱性",
+              "affects": [
+                {
+                  "ref": "pkg:pypi/flask@3.0.0"
+                }
+              ],
+              "analysis": {
+                "state": "not_affected",
+                "justification": "code_not_reachable",
+                "response": ["will_not_fix"],
+                "detail": "本プロジェクトではFlaskのセッション機能を使用していないため影響なし"
+              }
+            }
+          ]
+
+          with open("sbom.cdx.json", "w") as f:
+              json.dump(sbom, f, indent=2, ensure_ascii=False)
+
+          print("VEX情報をSBOMに追記しました")
+          EOF
+
+      # ArtifactsにSBOM+VEXを保存
+      - name: Upload SBOM+VEX as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-vex-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
