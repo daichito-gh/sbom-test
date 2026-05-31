@@ -1,4 +1,4 @@
-name: Generate SBOM with VEX
+name: Generate SBOM with cyclone-VEX
 
 on:
   push:
