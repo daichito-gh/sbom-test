@@ -1,0 +1,52 @@
+name: Generate SBOM with VEX
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # CycloneDX形式でSBOMを生成
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+
+      # OpenVEXツールをインストール
+      - name: Install vexctl
+        run: |
+          curl -sSfL https://github.com/openvex/vexctl/releases/latest/download/vexctl-linux-amd64 \
+            -o /usr/local/bin/vexctl
+          chmod +x /usr/local/bin/vexctl
+
+      # VEXドキュメントを生成
+      - name: Generate VEX document
+        run: |
+          vexctl create \
+            --product="pkg:github/daichito-gh/sbom-test@main" \
+            --vuln="CVE-2024-1234" \
+            --status="not_affected" \
+            --justification="vulnerable_code_not_in_execute_path" \
+            > vex.json
+
+      # ArtifactsにSBOMとVEXを両方保存
+      - name: Upload SBOM and VEX as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-vex-${{ github.sha }}
+          path: |
+            sbom.cdx.json
+            vex.json
+          retention-days: 90
