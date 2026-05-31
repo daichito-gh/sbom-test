@@ -1,0 +1,41 @@
+name: Generate and Upload SBOM
+
+on:
+  push:
+    branches: ["main"]      # mainへのプッシュ時に実行
+  release:
+    types: [published]      # リリース作成時に実行
+  schedule:
+    - cron: "0 2 * * 1"    # 毎週月曜 午前2時に実行
+  workflow_dispatch:         # 手動実行も可能にする
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      # 1. コードを取得
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. SBOMを生成してDependency graphに送信
+      - name: Generate SBOM and submit to dependency graph
+        uses: advanced-security/spdx-dependency-submission-action@v0.1.0
+
+      # 3. SBOMファイルをArtifactとして保存（90日間ダウンロード可能）
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: "*.spdx.json"
+          retention-days: 90
+
+      # 4. リリース時のみSBOMをリリースページに添付（オプション）
+      - name: Attach SBOM to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.spdx.json"
