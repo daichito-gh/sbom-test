@@ -2,8 +2,8 @@ name: Generate and Upload SBOM
 
 on:
   push:
-    branches: ["main"]      # mainへのプッシュ時に実行
-  workflow_dispatch:         # 手動実行も可能にする
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   generate-sbom:
@@ -15,6 +15,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # 依存関係をインストール（これがないとSBOMファイルが空になる）
+      - name: Install dependencies
+        run: npm install
 
       - name: Generate SBOM and submit to dependency graph
         uses: advanced-security/spdx-dependency-submission-action@v0.1.0
