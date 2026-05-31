@@ -1,3 +1,4 @@
+# CI/CDパイプラインに組み込む例：
 name: Generate SBOM
 on:
   push:
