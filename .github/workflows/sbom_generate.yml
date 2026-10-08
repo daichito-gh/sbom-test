@@ -1,0 +1,29 @@
+name: SBOM Generate & Scan
+on:
+  workflow_dispatch:        # 発表中にボタンで手動実行するため
+  push:
+    branches: [main]
+
+permissions:
+  contents: read            # 最小権限
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<コミットSHA>       # v4
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@<コミットSHA>    # v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Scan SBOM (Grype)
+        uses: anchore/scan-action@<コミットSHA>    # v6
+        with:
+          sbom: sbom.cdx.json
+          fail-build: false
+          severity-cutoff: high
+      - uses: actions/upload-artifact@<コミットSHA> # v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
